@@ -43,6 +43,7 @@ coverity_scan() {
 
 # Do an in-tree build and make sure tests pass.
 build() {
+  autoreconf -fvi
   ./configure
   make -j${JOBS} check VERBOSE=1
   make distclean
