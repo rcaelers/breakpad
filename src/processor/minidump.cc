@@ -376,7 +376,7 @@ static void PrintValueOrInvalid(bool valid,
 // Converts a time_t to a string showing the time in UTC.
 static string TimeTToUTCString(time_t tt) {
   struct tm timestruct;
-#ifdef _WIN32
+#ifdef _MSC_VER
   gmtime_s(&timestruct, &tt);
 #else
   gmtime_r(&tt, &timestruct);
