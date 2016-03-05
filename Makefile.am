@@ -344,6 +344,12 @@ bin_PROGRAMS += \
 	src/processor/minidump_stackwalk
 endif !DISABLE_PROCESSOR
 
+if !DISABLE_TOOLS
+bin_PROGRAMS += \
+	src/tools/linux/symupload/minidump_upload \
+	src/tools/linux/symupload/sym_upload
+endif
+
 if LINUX_HOST
 EXTRA_PROGRAMS += \
 	src/client/linux/linux_dumper_unittest_helper
@@ -354,9 +360,7 @@ if !DISABLE_TOOLS
 bin_PROGRAMS += \
 	src/tools/linux/core2md/core2md \
 	src/tools/linux/dump_syms/dump_syms \
-	src/tools/linux/md2core/minidump-2-core \
-	src/tools/linux/symupload/minidump_upload \
-	src/tools/linux/symupload/sym_upload
+	src/tools/linux/md2core/minidump-2-core
 if X86_HOST
 bin_PROGRAMS += \
 	src/tools/mac/dump_syms/dump_syms_mac
@@ -448,6 +452,19 @@ else
 # The default Autotools test driver script.
 LOG_DRIVER = $(top_srcdir)/autotools/test-driver
 endif
+
+src_tools_linux_symupload_minidump_upload_SOURCES = \
+	src/common/linux/http_upload.cc \
+	src/tools/linux/symupload/minidump_upload.cc
+src_tools_linux_symupload_minidump_upload_LDADD = -lcurl
+
+src_tools_linux_symupload_sym_upload_SOURCES = \
+	src/common/linux/http_upload.cc \
+	src/common/linux/http_upload.h \
+	src/common/linux/symbol_upload.cc \
+	src/common/linux/symbol_upload.h \
+	src/tools/linux/symupload/sym_upload.cc
+src_tools_linux_symupload_sym_upload_LDADD = -lcurl
 
 if LINUX_HOST
 src_client_linux_linux_dumper_unittest_helper_SOURCES = \
@@ -597,19 +614,6 @@ src_tools_linux_md2core_minidump_2_core_SOURCES = \
 	src/common/path_helper.cc \
 	src/tools/linux/md2core/minidump-2-core.cc \
 	src/tools/linux/md2core/minidump_memory_range.h
-
-src_tools_linux_symupload_minidump_upload_SOURCES = \
-	src/common/linux/http_upload.cc \
-	src/tools/linux/symupload/minidump_upload.cc
-src_tools_linux_symupload_minidump_upload_LDADD = -lcurl
-
-src_tools_linux_symupload_sym_upload_SOURCES = \
-	src/common/linux/http_upload.cc \
-	src/common/linux/http_upload.h \
-	src/common/linux/symbol_upload.cc \
-	src/common/linux/symbol_upload.h \
-	src/tools/linux/symupload/sym_upload.cc
-src_tools_linux_symupload_sym_upload_LDADD = -lcurl
 
 src_tools_mac_dump_syms_dump_syms_mac_SOURCES = \
 	src/common/dwarf_cfi_to_module.cc \
