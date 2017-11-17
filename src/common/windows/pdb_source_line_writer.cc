@@ -43,11 +43,8 @@
 #include <ImageHlp.h>
 #include <stdio.h>
 
-#include <algorithm>
 #include <limits>
-#include <map>
 #include <set>
-#include <utility>
 
 #include "common/windows/dia_util.h"
 #include "common/windows/guid_string.h"
@@ -115,8 +112,6 @@ namespace {
 
 using std::vector;
 
-typedef std::multimap<DWORD, CComPtr<IDiaSymbol>> SymbolMultimap;
-
 // A helper class to scope a PLOADED_IMAGE.
 class AutoImage {
  public:
@@ -175,16 +170,6 @@ bool CreateDiaDataSourceInstance(CComPtr<IDiaDataSource> &data_source) {
   }
 
   return false;
-}
-
-// Computing undecorated names for all symbols is expensive, so we compare
-// decorated names.
-bool CompareSymbols(const SymbolMultimap::value_type& a,
-                    const SymbolMultimap::value_type& b) {
-  BSTR a_name, b_name;
-  a.second->get_name(&a_name);
-  b.second->get_name(&b_name);
-  return wcscmp(a_name, b_name) < 0;
 }
 
 }  // namespace
@@ -421,7 +406,7 @@ bool PDBSourceLineWriter::PrintFunctions() {
   CComPtr<IDiaEnumSymbols> symbols = NULL;
 
   // Find all function symbols first.
-  SymbolMultimap rva_symbols;
+  std::set<DWORD> rvas;
   hr = global->findChildren(SymTagFunction, NULL, nsNone, &symbols);
 
   if (SUCCEEDED(hr)) {
@@ -429,10 +414,9 @@ bool PDBSourceLineWriter::PrintFunctions() {
 
     while (SUCCEEDED(symbols->Next(1, &symbol, &count)) && count == 1) {
       if (SUCCEEDED(symbol->get_relativeVirtualAddress(&rva))) {
-        // Place the symbols into a multimap indexed by rva, so we can choose
-        // the apropriate symbol name to use when multiple symbols share an
-        // address.
-        rva_symbols.insert(std::make_pair(rva, symbol));
+        // To maintain existing behavior of one symbol per address, place the
+        // rva onto a set here to uniquify them.
+        rvas.insert(rva);
       } else {
         fprintf(stderr, "get_relativeVirtualAddress failed on the symbol\n");
         return false;
@@ -454,9 +438,8 @@ bool PDBSourceLineWriter::PrintFunctions() {
 
     while (SUCCEEDED(symbols->Next(1, &symbol, &count)) && count == 1) {
       if (SUCCEEDED(symbol->get_relativeVirtualAddress(&rva))) {
-        if (rva_symbols.find(rva) == rva_symbols.end()) {
-          // Keep symbols in rva order.
-          rva_symbols.insert(std::make_pair(rva, symbol));
+        if (rvas.count(rva) == 0) {
+          rvas.insert(rva); // Keep symbols in rva order.
           public_only_rvas.insert(rva);
         }
       } else {
@@ -470,29 +453,40 @@ bool PDBSourceLineWriter::PrintFunctions() {
     symbols.Release();
   }
 
-  // For each rva, dump one symbol at the address.
-  SymbolMultimap::iterator it = rva_symbols.begin();
-  while (it != rva_symbols.end()) {
-    std::pair<SymbolMultimap::iterator, SymbolMultimap::iterator> symbol_range =
-      rva_symbols.equal_range(it->first);
-    // Find the minimum symbol by name to make the output more consistent
-    // between runs on different releases of the same module, in the case of
-    // multiple symbols sharing an address.
-    SymbolMultimap::iterator least_symbol_iter =
-      std::min_element(symbol_range.first, symbol_range.second, CompareSymbols);
-    CComPtr<IDiaSymbol> symbol = least_symbol_iter->second;
-    // Only print public symbols if there is no function symbol for the address.
-    if (public_only_rvas.count(it->first) == 0) {
-      if (!PrintFunction(symbol, symbol))
-        return false;
-      symbol.Release();
-    } else {
-      if (!PrintCodePublicSymbol(symbol))
-        return false;
-      symbol.Release();
-    }
+  std::set<DWORD>::iterator it;
 
-    it = symbol_range.second;
+  // For each rva, dump the first symbol DIA knows about at the address.
+  for (it = rvas.begin(); it != rvas.end(); ++it) {
+    CComPtr<IDiaSymbol> symbol = NULL;
+    // If the symbol is not in the public list, look for SymTagFunction. This is
+    // a workaround to a bug where DIA will hang if searching for a private
+    // symbol at an address where only a public symbol exists.
+    // See http://connect.microsoft.com/VisualStudio/feedback/details/722366
+    if (public_only_rvas.count(*it) == 0) {
+      if (SUCCEEDED(session_->findSymbolByRVA(*it, SymTagFunction, &symbol))) {
+        // Sometimes findSymbolByRVA returns S_OK, but NULL.
+        if (symbol) {
+          if (!PrintFunction(symbol, symbol))
+            return false;
+          symbol.Release();
+        }
+      } else {
+        fprintf(stderr, "findSymbolByRVA SymTagFunction failed\n");
+        return false;
+      }
+    } else if (SUCCEEDED(session_->findSymbolByRVA(*it,
+                                                   SymTagPublicSymbol,
+                                                   &symbol))) {
+      // Sometimes findSymbolByRVA returns S_OK, but NULL.
+      if (symbol) {
+        if (!PrintCodePublicSymbol(symbol))
+          return false;
+        symbol.Release();
+      }
+    } else {
+      fprintf(stderr, "findSymbolByRVA SymTagPublicSymbol failed\n");
+      return false;
+    }
   }
 
   // When building with PGO, the compiler can split functions into
