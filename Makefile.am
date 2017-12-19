@@ -381,11 +381,9 @@ endif
 endif
 endif LINUX_HOST
 
-if WINDOWS_HOST
 if !DISABLE_TOOLS
 bin_PROGRAMS += \
-	src/tools/windows/dump_syms_dwarf/dump_syms
-endif
+	src/tools/windows/dump_syms_dwarf/dump_syms_win
 endif
 
 if MINGW_HOST
@@ -813,9 +811,8 @@ src_tools_linux_md2core_minidump_2_core_unittest_LDADD = \
 
 endif LINUX_HOST
 
-if WINDOWS_HOST
 if !DISABLE_TOOLS
-src_tools_windows_dump_syms_dwarf_dump_syms_SOURCES = \
+src_tools_windows_dump_syms_dwarf_dump_syms_win_SOURCES = \
 	src/common/dwarf_cfi_to_module.cc \
 	src/common/dwarf_cu_to_module.cc \
 	src/common/dwarf_line_to_module.cc \
@@ -828,9 +825,8 @@ src_tools_windows_dump_syms_dwarf_dump_syms_SOURCES = \
 	src/common/pecoff/pecoffutils.cc \
 	src/common/pecoff/pecoff_file_id.cc \
 	src/tools/windows/dump_syms_dwarf/dump_syms.cc
-src_tools_windows_dump_syms_dwarf_dump_syms_LDADD = \
+src_tools_windows_dump_syms_dwarf_dump_syms_win_LDADD = \
 	$(SOCKET_LIBS)
-endif
 endif
 
 if !DISABLE_PROCESSOR
