@@ -488,7 +488,8 @@ endif !ANDROID_HOST
 src_tools_linux_symupload_minidump_upload_SOURCES = \
 	src/common/linux/http_upload.cc \
 	src/tools/linux/symupload/minidump_upload.cc
-src_tools_linux_symupload_minidump_upload_LDADD = -lcurl
+src_tools_linux_symupload_minidump_upload_LDADD = ${CURL_LIBS}
+src_tools_linux_symupload_minidump_upload_CXXFLAGS = ${CURL_CFLAGS}
 
 src_tools_linux_symupload_sym_upload_SOURCES = \
 	src/common/linux/http_upload.cc \
@@ -496,7 +497,8 @@ src_tools_linux_symupload_sym_upload_SOURCES = \
 	src/common/linux/symbol_upload.cc \
 	src/common/linux/symbol_upload.h \
 	src/tools/linux/symupload/sym_upload.cc
-src_tools_linux_symupload_sym_upload_LDADD = -lcurl
+src_tools_linux_symupload_sym_upload_LDADD = ${CURL_LIBS}
+src_tools_linux_symupload_sym_upload_CXXFLAGS = ${CURL_CFLAGS}
 
 if LINUX_HOST
 src_client_linux_linux_dumper_unittest_helper_SOURCES = \

@@ -50,6 +50,8 @@ AC_PROG_CXX
 AC_PROG_RANLIB
 AC_CHECK_TOOL(WINDRES, [windres])
 
+PKG_CHECK_MODULES([CURL], [libcurl])
+
 dnl This must come before all the feature tests below.
 AC_ARG_ENABLE(m32,
               AS_HELP_STRING([--enable-m32],
