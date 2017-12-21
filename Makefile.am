@@ -357,13 +357,13 @@ bin_PROGRAMS += \
 	src/processor/minidump_stackwalk
 endif !DISABLE_PROCESSOR
 
+if LINUX_HOST
 if !DISABLE_TOOLS
 bin_PROGRAMS += \
 	src/tools/linux/symupload/minidump_upload \
 	src/tools/linux/symupload/sym_upload
 endif
 
-if LINUX_HOST
 EXTRA_PROGRAMS += \
 	src/client/linux/linux_dumper_unittest_helper
 CLEANFILES += \
