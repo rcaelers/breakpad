@@ -475,8 +475,12 @@ if ANDROID_HOST
 LOG_DRIVER = $(top_srcdir)/android/test-driver
 else
 # The default Autotools test driver script.
+if TESTS_AS_ROOT
+LOG_DRIVER = $(top_srcdir)/autotools/root-test-driver $(top_srcdir)/autotools/test-driver
+else
 LOG_DRIVER = $(top_srcdir)/autotools/test-driver
-endif
+endif !TESTS_AS_ROOT
+endif !ANDROID_HOST
 
 src_tools_linux_symupload_minidump_upload_SOURCES = \
 	src/common/linux/http_upload.cc \
