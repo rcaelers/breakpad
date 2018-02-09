@@ -35,6 +35,10 @@ AM_CPPFLAGS = -I$(top_srcdir)/src
 AM_CFLAGS =
 AM_CXXFLAGS =
 
+if !DISABLE_PROCESSOR
+AM_CPPFLAGS += $(JSONCPP_CFLAGS)
+endif
+
 if ANDROID_HOST
 # This allows using fixed NDK headers when building for Android.
 AM_CXXFLAGS += -I$(top_srcdir)/src/common/android/include
@@ -152,6 +156,7 @@ src_testing_libtesting_a_CPPFLAGS = \
 endif
 
 if !DISABLE_PROCESSOR
+
 lib_LIBRARIES += src/libbreakpad.a
 pkgconfig_DATA += breakpad.pc
 noinst_LIBRARIES += src/third_party/libdisasm/libdisasm.a
