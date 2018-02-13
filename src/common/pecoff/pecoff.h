@@ -39,6 +39,7 @@
 
 #define IMAGE_FILE_MAGIC                     0x00004550 // "PE\0\0"
 
+#ifndef _WIN32 /* these are defined in mingw and MSVC headers */
 #define IMAGE_FILE_MACHINE_UNKNOWN           0x0000
 #define IMAGE_FILE_MACHINE_ALPHA             0x0184
 #define IMAGE_FILE_MACHINE_ALPHA64           0x0284
@@ -70,6 +71,7 @@
 #define IMAGE_FILE_MACHINE_TRICORE           0x0520
 #define IMAGE_FILE_MACHINE_WCEMIPSV2         0x0169
 #define IMAGE_FILE_MACHINE_AMD64             0x8664
+#endif /* _WIN32 */
 
 struct PeHeader {
   uint32_t mMagic;   // IMAGE_FILE_MAGIC
