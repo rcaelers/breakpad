@@ -14,7 +14,7 @@ environment:
   - toolchain: gcc
     HOST: i686-pc-cygwin
   - toolchain: gcc
-    HOST: x86_64-unknown-cygwin
+    HOST: x86_64-pc-cygwin
 
 platform:
   - Win32
@@ -28,7 +28,7 @@ matrix:
   - configuration: Release
     HOST: i686-pc-cygwin
   - configuration: Release
-    HOST: x86_64-unknown-cygwin
+    HOST: x86_64-pc-cygwin
 
 # Use the source dir expected by gclient.
 clone_folder: c:\projects\breakpad\src

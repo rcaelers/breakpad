@@ -1,5 +1,5 @@
 set CYGWIN_ROOT=C:\cygwin
-if "%HOST%"=="x86_64-unknown-cygwin" set CYGWIN_ROOT=C:\cygwin64
+if "%HOST%"=="x86_64-pc-cygwin" set CYGWIN_ROOT=C:\cygwin64
 goto %1
 
 :install
@@ -8,7 +8,7 @@ set SETUP=setup-x86.exe
 if "%HOST%"=="i686-w64-mingw32" set PKGARCH=mingw64-i686
 if "%HOST%"=="x86_64-w64-mingw32" set PKGARCH=mingw64-x86_64
 if "%HOST%"=="i686-pc-cygwin" set SETUP=setup-x86.exe
-if "%HOST%"=="x86_64-unknown-cygwin" set SETUP=setup-x86_64.exe
+if "%HOST%"=="x86_64-pc-cygwin" set SETUP=setup-x86_64.exe
 if not defined PKGARCH (
 set PACKAGES="gcc-g++,libcurl-devel,pkg-config"
 ) else (
