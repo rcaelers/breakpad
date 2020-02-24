@@ -1,4 +1,4 @@
-// Copyright (c) 2010, Google Inc.
+// Copyright (c) 2011, Google Inc.
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -27,57 +27,62 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include <string.h>
+#include <stdio.h>
 
+#include <cstring>
+#include <iostream>
 #include <string>
 #include <vector>
 
-#include "common/using_std_string.h"
+#include "common/pecoff/dump_symbols.h"
 
-#ifndef HAVE_STRTOK_R
-extern "C" char *strtok_r(char *, const char *, char **);
-#endif
+using google_breakpad::WriteSymbolFile;
 
-#ifdef _MSC_VER
-#define strtok_r strtok_s
-#endif
-
-namespace google_breakpad {
-
-using std::vector;
-
-bool Tokenize(char *line,
-	      const char *separators,
-	      int max_tokens,
-	      vector<char*> *tokens) {
-  tokens->clear();
-  tokens->reserve(max_tokens);
-
-  int remaining = max_tokens;
-
-  // Split tokens on the separator character.
-  // strip them out before exhausting max_tokens.
-  char *save_ptr;
-  char *token = strtok_r(line, separators, &save_ptr);
-  while (token && --remaining > 0) {
-    tokens->push_back(token);
-    if (remaining > 1)
-      token = strtok_r(NULL, separators, &save_ptr);
-  }
-
-  // If there's anything left, just add it as a single token.
-  if (remaining == 0 && (token = strtok_r(NULL, "\r\n", &save_ptr))) {
-    tokens->push_back(token);
-  }
-
-  return tokens->size() == static_cast<unsigned int>(max_tokens);
+int usage(const char* self) {
+  fprintf(stderr, "Usage: %s [OPTION] <binary-with-dwarf-debugging-info> "
+          "[directories-for-debug-file]\n\n", self);
+  fprintf(stderr, "Options:\n");
+  fprintf(stderr, "  -c    Do not generate CFI section\n");
+  fprintf(stderr, "  -r    Do not handle inter-compilation unit references\n");
+  return 1;
 }
 
-void StringToVector(const string &str, vector<char> &vec) {
-  vec.resize(str.length() + 1);
-  std::copy(str.begin(), str.end(),
-	    vec.begin());
-  vec[str.length()] = '\0';
-}
+int main(int argc, char **argv) {
+  if (argc < 2)
+    return usage(argv[0]);
 
-} // namespace google_breakpad
+  bool cfi = true;
+  bool handle_inter_cu_refs = true;
+  int arg_index = 1;
+  while (arg_index < argc && strlen(argv[arg_index]) > 0 &&
+         argv[arg_index][0] == '-') {
+    if (strcmp("-c", argv[arg_index]) == 0) {
+      cfi = false;
+    } else if (strcmp("-r", argv[arg_index]) == 0) {
+      handle_inter_cu_refs = false;
+    } else {
+      return usage(argv[0]);
+    }
+    ++arg_index;
+  }
+  if (arg_index == argc)
+    return usage(argv[0]);
+
+  const char* binary;
+  std::vector<string> debug_dirs;
+  binary = argv[arg_index];
+  for (int debug_dir_index = arg_index + 1;
+       debug_dir_index < argc;
+       ++debug_dir_index) {
+    debug_dirs.push_back(argv[debug_dir_index]);
+  }
+
+  SymbolData symbol_data = cfi ? ALL_SYMBOL_DATA : NO_CFI;
+  google_breakpad::DumpOptions options(symbol_data, handle_inter_cu_refs);
+  if (!WriteSymbolFile(binary, debug_dirs, options, std::cout)) {
+    fprintf(stderr, "Failed to write symbol file.\n");
+    return 1;
+  }
+
+  return 0;
+}

@@ -1,4 +1,4 @@
-// Copyright (c) 2010, Google Inc.
+// Copyright (c) 2006, Google Inc.
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -26,58 +26,27 @@
 // THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+//
+// pecoff_file_id.h: Return a unique identifier for a file
+//
 
-#include <string.h>
+#ifndef COMMON_PECOFF_PECOFF_FILE_ID_H__
+#define COMMON_PECOFF_PECOFF_FILE_ID_H__
 
-#include <string>
-#include <vector>
-
-#include "common/using_std_string.h"
-
-#ifndef HAVE_STRTOK_R
-extern "C" char *strtok_r(char *, const char *, char **);
-#endif
-
-#ifdef _MSC_VER
-#define strtok_r strtok_s
-#endif
+#include <stddef.h>
+#include <stdint.h>
 
 namespace google_breakpad {
 
-using std::vector;
+static const size_t kMDGUIDSize = 16;
 
-bool Tokenize(char *line,
-	      const char *separators,
-	      int max_tokens,
-	      vector<char*> *tokens) {
-  tokens->clear();
-  tokens->reserve(max_tokens);
+class PeCoffFileID {
+ public:
+  static bool PeCoffFileIdentifierFromMappedFile(const void* base,
+                                                 uint8_t identifier[kMDGUIDSize],
+                                                 uint32_t* age);
+};
 
-  int remaining = max_tokens;
+}  // namespace google_breakpad
 
-  // Split tokens on the separator character.
-  // strip them out before exhausting max_tokens.
-  char *save_ptr;
-  char *token = strtok_r(line, separators, &save_ptr);
-  while (token && --remaining > 0) {
-    tokens->push_back(token);
-    if (remaining > 1)
-      token = strtok_r(NULL, separators, &save_ptr);
-  }
-
-  // If there's anything left, just add it as a single token.
-  if (remaining == 0 && (token = strtok_r(NULL, "\r\n", &save_ptr))) {
-    tokens->push_back(token);
-  }
-
-  return tokens->size() == static_cast<unsigned int>(max_tokens);
-}
-
-void StringToVector(const string &str, vector<char> &vec) {
-  vec.resize(str.length() + 1);
-  std::copy(str.begin(), str.end(),
-	    vec.begin());
-  vec[str.length()] = '\0';
-}
-
-} // namespace google_breakpad
+#endif  // COMMON_PECOFF_PECOFF_FILE_ID_H__

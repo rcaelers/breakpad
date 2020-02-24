@@ -372,7 +372,7 @@ void PrintValueOrInvalid(bool valid,
 // Converts a time_t to a string showing the time in UTC.
 string TimeTToUTCString(time_t tt) {
   struct tm timestruct;
-#ifdef _WIN32
+#ifdef _MSC_VER
   gmtime_s(&timestruct, &tt);
 #else
   gmtime_r(&tt, &timestruct);
@@ -2129,6 +2129,20 @@ string MinidumpModule::debug_file() const {
     }
   }
 
+  // Manufacture debug-file from code-file
+  if (file.empty()) {
+    file = code_file();
+
+    BPLOG(INFO) << "Generated debug_file '" << file << "' from code_file '" << *name_ << "'";
+  }
+
+  // This may be a windows-style pathname, so find the basename considering both
+  // forward and back-slashes.
+  const size_t last_slash_idx = file.find_last_of("\\/");
+  if (std::string::npos != last_slash_idx) {
+    file.erase(0, last_slash_idx + 1);
+  }
+
   // Relatively common case
   BPLOG_IF(INFO, file.empty()) << "MinidumpModule could not determine "
                                   "debug_file for " << *name_;
@@ -2218,6 +2232,40 @@ string MinidumpModule::debug_identifier() const {
   // a CodeView record).  Treat it as an error (empty identifier) for now.
 
   // TODO(mmentovai): on the Mac, provide fallbacks as in code_identifier().
+
+  // If possible, synthesize a debug_identifier from the version and
+  // architecture.
+  if (identifier.empty()) {
+    std::string ver = version();
+    if (ver.compare("") != 0) {
+      identifier = "";
+      for (std::string::const_iterator i = ver.begin(); i != ver.end(); i++) {
+        if (isxdigit(*i)) {
+          identifier += *i;
+        }
+      }
+
+      MinidumpSystemInfo *minidump_system_info = minidump_->GetSystemInfo();
+      if (minidump_system_info) {
+        std::string cpu = minidump_system_info->GetCPU();
+        for (std::string::const_iterator i = cpu.begin(); i != cpu.end(); i++) {
+          char ashex[4];
+          snprintf(ashex, sizeof(ashex), "%02x", *i);
+          identifier += ashex;
+        }
+      }
+
+      while (identifier.size() < 33) {
+        identifier += "0";
+      }
+    }
+  }
+
+  // Fallback to a default debug_identifier
+  if (identifier.empty())
+  {
+    identifier = "000000000000000000000000000000000";
+  }
 
   // Relatively common case
   BPLOG_IF(INFO, identifier.empty()) << "MinidumpModule could not determine "

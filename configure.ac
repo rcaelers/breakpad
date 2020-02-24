@@ -48,6 +48,7 @@ AM_PROG_CC_C_O
 AC_PROG_CPP
 AC_PROG_CXX
 AC_PROG_RANLIB
+AC_CHECK_TOOL(WINDRES, [windres])
 
 dnl This must come before all the feature tests below.
 AC_ARG_ENABLE(m32,
@@ -76,6 +77,9 @@ AC_CHECK_HEADERS([a.out.h sys/random.h])
 AC_CHECK_FUNCS([arc4random getrandom])
 
 AX_CXX_COMPILE_STDCXX(11, noext, mandatory)
+
+AC_CONFIG_LIBOBJ_DIR([compat])
+AC_REPLACE_FUNCS([strtok_r])
 
 dnl Test supported warning flags.
 WARN_CXXFLAGS=
@@ -110,8 +114,19 @@ case $host in
   *-*-linux* | *-android* )
     LINUX_HOST=true
     ;;
+  *-*-cygwin* )
+    WINDOWS_HOST=true
+    ;;
+  *-*-mingw* )
+    WINDOWS_HOST=true
+    MINGW_HOST=true
+    ;;
 esac
+
 AM_CONDITIONAL(LINUX_HOST, test x$LINUX_HOST = xtrue)
+# WINDOWS_HOST means MINGW or CYGWIN
+AM_CONDITIONAL(WINDOWS_HOST, test x$WINDOWS_HOST = xtrue)
+AM_CONDITIONAL(MINGW_HOST, test x$MINGW_HOST = xtrue)
 
 # Only use Android support headers when compiling for Android
 case $host in
