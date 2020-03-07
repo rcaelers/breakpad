@@ -497,6 +497,10 @@ src_tools_linux_symupload_minidump_upload_CXXFLAGS = ${CURL_CFLAGS}
 src_tools_linux_symupload_sym_upload_SOURCES = \
 	src/common/linux/http_upload.cc \
 	src/common/linux/http_upload.h \
+	src/common/linux/libcurl_wrapper.cc \
+	src/common/linux/libcurl_wrapper.h \
+	src/common/linux/symbol_collector_client.cc \
+	src/common/linux/symbol_collector_client.h \
 	src/common/linux/symbol_upload.cc \
 	src/common/linux/symbol_upload.h \
 	src/tools/linux/symupload/sym_upload.cc
@@ -654,10 +658,6 @@ src_tools_linux_md2core_minidump_2_core_SOURCES = \
 	src/tools/linux/md2core/minidump-2-core.cc \
 	src/tools/linux/md2core/minidump_memory_range.h
 
-	src/common/linux/libcurl_wrapper.cc \
-	src/common/linux/libcurl_wrapper.h \
-	src/common/linux/symbol_collector_client.cc \
-	src/common/linux/symbol_collector_client.h \
 src_tools_mac_dump_syms_dump_syms_mac_SOURCES = \
 	src/common/dwarf_cfi_to_module.cc \
 	src/common/dwarf_cu_to_module.cc \
