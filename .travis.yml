@@ -12,6 +12,7 @@ addons:
       - clang
       - gcc-4.8
       - g++-4.8
+      - libcurl4-openssl-dev
 
 env:
   global:
@@ -28,7 +29,3 @@ matrix:
 
 before_install: ./scripts/travis-checkout.sh
 script: ./scripts/travis-build.sh
-
-notifications:
-  email:
-    - google-breakpad-dev@googlegroups.com

@@ -35,6 +35,10 @@ AM_CPPFLAGS = -I$(top_srcdir)/src
 AM_CFLAGS =
 AM_CXXFLAGS =
 
+if !DISABLE_PROCESSOR
+AM_CPPFLAGS += $(JSONCPP_CFLAGS)
+endif
+
 if ANDROID_HOST
 # This allows using fixed NDK headers when building for Android.
 AM_CXXFLAGS += -I$(top_srcdir)/src/common/android/include
@@ -49,6 +53,17 @@ if LINUX_HOST
 # Build as PIC on Linux, for linux_client_unittest_shlib
 AM_CFLAGS += -fPIC
 AM_CXXFLAGS += -fPIC
+endif
+
+if WINDOWS_HOST
+# don't have stab.h, don't build stabs support
+AM_CPPFLAGS += -DNO_STABS_SUPPORT
+endif
+
+if MINGW_HOST
+SOCKET_LIBS = -lws2_32
+AM_CPPFLAGS += -D_POSIX_C_SOURCE
+AM_CPPFLAGS += -D__USE_MINGW_ANSI_STDIO
 endif
 
 # Specify include paths for ac macros
@@ -141,6 +156,7 @@ src_testing_libtesting_a_CPPFLAGS = \
 endif
 
 if !DISABLE_PROCESSOR
+
 lib_LIBRARIES += src/libbreakpad.a
 pkgconfig_DATA += breakpad.pc
 noinst_LIBRARIES += src/third_party/libdisasm/libdisasm.a
@@ -347,6 +363,12 @@ bin_PROGRAMS += \
 endif !DISABLE_PROCESSOR
 
 if LINUX_HOST
+if !DISABLE_TOOLS
+bin_PROGRAMS += \
+	src/tools/linux/symupload/minidump_upload \
+	src/tools/linux/symupload/sym_upload
+endif
+
 EXTRA_PROGRAMS += \
 	src/client/linux/linux_dumper_unittest_helper
 CLEANFILES += \
@@ -356,9 +378,7 @@ if !DISABLE_TOOLS
 bin_PROGRAMS += \
 	src/tools/linux/core2md/core2md \
 	src/tools/linux/dump_syms/dump_syms \
-	src/tools/linux/md2core/minidump-2-core \
-	src/tools/linux/symupload/minidump_upload \
-	src/tools/linux/symupload/sym_upload
+	src/tools/linux/md2core/minidump-2-core
 if X86_HOST
 bin_PROGRAMS += \
 	src/tools/mac/dump_syms/dump_syms_mac
@@ -366,6 +386,18 @@ endif
 endif
 endif LINUX_HOST
 
+if !DISABLE_TOOLS
+bin_PROGRAMS += \
+	src/tools/windows/dump_syms_dwarf/dump_syms_win
+endif
+
+if MINGW_HOST
+# For MinGW, use gyp to generate a Makefile to build Windows client library
+Configuration ?= Debug
+all-local:
+	cd $(top_srcdir)/src ; ./tools/gyp/gyp --no-circular-check --no-parallel --depth=. -f make client/windows/breakpad_client.gyp
+	cd $(top_srcdir)/src ; $(MAKE) CXX="$(CXX)" CXXFLAGS="-DUNICODE -D_UNICODE $(AM_CPPFLAGS) $(CXXFLAGS)" AR="$(AR)" RC="$(WINDRES)" BUILDTYPE="$(Configuration)"
+endif
 
 ## Tests
 if !DISABLE_PROCESSOR
@@ -455,6 +487,25 @@ else
 LOG_DRIVER = $(top_srcdir)/autotools/test-driver
 endif !TESTS_AS_ROOT
 endif !ANDROID_HOST
+
+src_tools_linux_symupload_minidump_upload_SOURCES = \
+	src/common/linux/http_upload.cc \
+	src/tools/linux/symupload/minidump_upload.cc
+src_tools_linux_symupload_minidump_upload_LDADD = ${CURL_LIBS}
+src_tools_linux_symupload_minidump_upload_CXXFLAGS = ${CURL_CFLAGS}
+
+src_tools_linux_symupload_sym_upload_SOURCES = \
+	src/common/linux/http_upload.cc \
+	src/common/linux/http_upload.h \
+	src/common/linux/libcurl_wrapper.cc \
+	src/common/linux/libcurl_wrapper.h \
+	src/common/linux/symbol_collector_client.cc \
+	src/common/linux/symbol_collector_client.h \
+	src/common/linux/symbol_upload.cc \
+	src/common/linux/symbol_upload.h \
+	src/tools/linux/symupload/sym_upload.cc
+src_tools_linux_symupload_sym_upload_LDADD = ${CURL_LIBS}
+src_tools_linux_symupload_sym_upload_CXXFLAGS = ${CURL_CFLAGS}
 
 if LINUX_HOST
 src_client_linux_linux_dumper_unittest_helper_SOURCES = \
@@ -606,23 +657,6 @@ src_tools_linux_md2core_minidump_2_core_SOURCES = \
 	src/common/path_helper.cc \
 	src/tools/linux/md2core/minidump-2-core.cc \
 	src/tools/linux/md2core/minidump_memory_range.h
-
-src_tools_linux_symupload_minidump_upload_SOURCES = \
-	src/common/linux/http_upload.cc \
-	src/tools/linux/symupload/minidump_upload.cc
-src_tools_linux_symupload_minidump_upload_LDADD = -ldl
-
-src_tools_linux_symupload_sym_upload_SOURCES = \
-	src/common/linux/http_upload.cc \
-	src/common/linux/http_upload.h \
-	src/common/linux/libcurl_wrapper.cc \
-	src/common/linux/libcurl_wrapper.h \
-	src/common/linux/symbol_collector_client.cc \
-	src/common/linux/symbol_collector_client.h \
-	src/common/linux/symbol_upload.cc \
-	src/common/linux/symbol_upload.h \
-	src/tools/linux/symupload/sym_upload.cc
-src_tools_linux_symupload_sym_upload_LDADD = -ldl
 
 src_tools_mac_dump_syms_dump_syms_mac_SOURCES = \
 	src/common/dwarf_cfi_to_module.cc \
@@ -782,6 +816,25 @@ src_tools_linux_md2core_minidump_2_core_unittest_LDADD = \
 
 endif LINUX_HOST
 
+if !DISABLE_TOOLS
+src_tools_windows_dump_syms_dwarf_dump_syms_win_SOURCES = \
+	src/common/dwarf_cfi_to_module.cc \
+	src/common/dwarf_cu_to_module.cc \
+	src/common/dwarf_line_to_module.cc \
+	src/common/dwarf_range_list_handler.cc \
+	src/common/language.cc \
+	src/common/module.cc \
+	src/common/dwarf/bytereader.cc \
+	src/common/dwarf/dwarf2diehandler.cc \
+	src/common/dwarf/dwarf2reader.cc \
+	src/common/pecoff/dump_symbols.cc \
+	src/common/pecoff/pecoffutils.cc \
+	src/common/pecoff/pecoff_file_id.cc \
+	src/tools/windows/dump_syms_dwarf/dump_syms.cc
+src_tools_windows_dump_syms_dwarf_dump_syms_win_LDADD = \
+	$(SOCKET_LIBS)
+endif
+
 if !DISABLE_PROCESSOR
 src_processor_address_map_unittest_SOURCES = \
 	src/processor/address_map_unittest.cc
@@ -801,7 +854,7 @@ src_processor_basic_source_line_resolver_unittest_LDADD = \
 	src/processor/source_line_resolver_base.o \
 	src/processor/tokenize.o \
 	$(TEST_LIBS) \
-	$(PTHREAD_CFLAGS) $(PTHREAD_LIBS)
+	$(PTHREAD_CFLAGS) $(PTHREAD_LIBS) @LIBOBJS@
 
 src_processor_cfi_frame_info_unittest_SOURCES = \
 	src/processor/cfi_frame_info_unittest.cc
@@ -810,7 +863,7 @@ src_processor_cfi_frame_info_unittest_LDADD = \
 	src/processor/logging.o \
 	src/processor/pathname_stripper.o \
 	$(TEST_LIBS) \
-	$(PTHREAD_CFLAGS) $(PTHREAD_LIBS)
+	$(PTHREAD_CFLAGS) $(PTHREAD_LIBS) @LIBOBJS@
 src_processor_cfi_frame_info_unittest_CPPFLAGS = \
 	$(AM_CPPFLAGS) $(TEST_CFLAGS)
 
@@ -860,7 +913,7 @@ src_processor_exploitability_unittest_LDADD = \
 	src/processor/tokenize.o \
 	src/third_party/libdisasm/libdisasm.a \
 	$(TEST_LIBS) \
-	$(PTHREAD_CFLAGS) $(PTHREAD_LIBS)
+	$(PTHREAD_CFLAGS) $(PTHREAD_LIBS) @LIBOBJS@
 
 src_processor_disassembler_x86_unittest_SOURCES = \
 	src/processor/disassembler_x86_unittest.cc
@@ -887,7 +940,7 @@ src_processor_fast_source_line_resolver_unittest_LDADD = \
 	src/processor/source_line_resolver_base.o \
 	src/processor/tokenize.o \
 	$(TEST_LIBS) \
-	$(PTHREAD_CFLAGS) $(PTHREAD_LIBS)
+	$(PTHREAD_CFLAGS) $(PTHREAD_LIBS) @LIBOBJS@
 
 src_processor_map_serializers_unittest_SOURCES = \
 	src/processor/map_serializers_unittest.cc
@@ -931,7 +984,7 @@ src_processor_microdump_processor_unittest_LDADD = \
 	src/processor/stackwalker_x86.o \
 	src/processor/tokenize.o \
 	$(TEST_LIBS) \
-	$(PTHREAD_CFLAGS) $(PTHREAD_LIBS)
+	$(PTHREAD_CFLAGS) $(PTHREAD_LIBS) @LIBOBJS@
 
 src_processor_minidump_processor_unittest_SOURCES = \
 	src/processor/minidump_processor_unittest.cc
@@ -972,7 +1025,7 @@ src_processor_minidump_processor_unittest_LDADD = \
 	src/processor/tokenize.o \
 	src/third_party/libdisasm/libdisasm.a \
 	$(TEST_LIBS) \
-	$(PTHREAD_CFLAGS) $(PTHREAD_LIBS)
+	$(PTHREAD_CFLAGS) $(PTHREAD_LIBS) @LIBOBJS@
 
 src_processor_minidump_unittest_SOURCES = \
 	src/common/test_assembler.cc \
@@ -1120,7 +1173,7 @@ src_processor_stackwalker_amd64_unittest_SOURCES = \
 src_processor_stackwalker_amd64_unittest_LDADD = \
 	src/libbreakpad.a \
 	$(TEST_LIBS) \
-	$(PTHREAD_CFLAGS) $(PTHREAD_LIBS)
+	$(PTHREAD_CFLAGS) $(PTHREAD_LIBS) @LIBOBJS@
 src_processor_stackwalker_amd64_unittest_CPPFLAGS = \
 	$(AM_CPPFLAGS) $(TEST_CFLAGS)
 
@@ -1130,7 +1183,7 @@ src_processor_stackwalker_arm_unittest_SOURCES = \
 src_processor_stackwalker_arm_unittest_LDADD = \
 	src/libbreakpad.a \
 	$(TEST_LIBS) \
-	$(PTHREAD_CFLAGS) $(PTHREAD_LIBS)
+	$(PTHREAD_CFLAGS) $(PTHREAD_LIBS) @LIBOBJS@
 src_processor_stackwalker_arm_unittest_CPPFLAGS = \
 	$(AM_CPPFLAGS) $(TEST_CFLAGS)
 
@@ -1140,7 +1193,7 @@ src_processor_stackwalker_arm64_unittest_SOURCES = \
 src_processor_stackwalker_arm64_unittest_LDADD = \
 	src/libbreakpad.a \
 	$(TEST_LIBS) \
-	$(PTHREAD_CFLAGS) $(PTHREAD_LIBS)
+	$(PTHREAD_CFLAGS) $(PTHREAD_LIBS) @LIBOBJS@
 src_processor_stackwalker_arm64_unittest_CPPFLAGS = \
 	$(AM_CPPFLAGS) $(TEST_CFLAGS)
 
@@ -1150,7 +1203,7 @@ src_processor_stackwalker_address_list_unittest_SOURCES = \
 src_processor_stackwalker_address_list_unittest_LDADD = \
 	src/libbreakpad.a \
 	$(TEST_LIBS) \
-	$(PTHREAD_CFLAGS) $(PTHREAD_LIBS)
+	$(PTHREAD_CFLAGS) $(PTHREAD_LIBS) @LIBOBJS@
 src_processor_stackwalker_address_list_unittest_CPPFLAGS = \
 	$(AM_CPPFLAGS) $(TEST_CFLAGS)
 
@@ -1160,7 +1213,7 @@ src_processor_stackwalker_mips_unittest_SOURCES = \
 src_processor_stackwalker_mips_unittest_LDADD = \
 	src/libbreakpad.a \
 	$(TEST_LIBS) \
-	$(PTHREAD_CFLAGS) $(PTHREAD_LIBS)
+	$(PTHREAD_CFLAGS) $(PTHREAD_LIBS) @LIBOBJS@
 src_processor_stackwalker_mips_unittest_CPPFLAGS = \
 	$(AM_CPPFLAGS) $(TEST_CFLAGS)
 
@@ -1180,7 +1233,7 @@ src_processor_stackwalker_x86_unittest_SOURCES = \
 src_processor_stackwalker_x86_unittest_LDADD = \
 	src/libbreakpad.a \
 	$(TEST_LIBS) \
-	$(PTHREAD_CFLAGS) $(PTHREAD_LIBS)
+	$(PTHREAD_CFLAGS) $(PTHREAD_LIBS) @LIBOBJS@
 src_processor_stackwalker_x86_unittest_CPPFLAGS = \
 	$(AM_CPPFLAGS) $(TEST_CFLAGS)
 
@@ -1220,7 +1273,8 @@ src_processor_minidump_dump_LDADD = \
 	src/processor/logging.o \
 	src/processor/minidump.o \
 	src/processor/pathname_stripper.o \
-	src/processor/proc_maps_linux.o
+	src/processor/proc_maps_linux.o \
+	$(PTHREAD_CFLAGS) $(PTHREAD_LIBS)
 
 src_processor_microdump_stackwalk_SOURCES = \
 	src/processor/microdump_stackwalk.cc
@@ -1255,7 +1309,10 @@ src_processor_microdump_stackwalk_LDADD = \
 	src/processor/stackwalker_sparc.o \
 	src/processor/stackwalker_x86.o \
 	src/processor/tokenize.o \
-	src/third_party/libdisasm/libdisasm.a
+	src/third_party/libdisasm/libdisasm.a \
+	$(PTHREAD_CFLAGS) $(PTHREAD_LIBS) $(SOCKET_LIBS) @LIBOBJS@
+
+src_processor_microdump_stackwalk_CFLAGS = $(JSONCPP_CFLAGS) $(AM_CFLAGS)
 
 src_processor_minidump_stackwalk_SOURCES = \
 	src/processor/minidump_stackwalk.cc
@@ -1295,7 +1352,8 @@ src_processor_minidump_stackwalk_LDADD = \
 	src/processor/stackwalker_x86.o \
 	src/processor/symbolic_constants_win.o \
 	src/processor/tokenize.o \
-	src/third_party/libdisasm/libdisasm.a
+	src/third_party/libdisasm/libdisasm.a \
+	$(PTHREAD_CFLAGS) $(PTHREAD_LIBS) $(SOCKET_LIBS) @LIBOBJS@
 
 endif !DISABLE_PROCESSOR
 
@@ -1506,17 +1564,6 @@ EXTRA_DIST = \
 	src/testing/googlemock/src/gmock-matchers.cc \
 	src/testing/googlemock/src/gmock-spec-builders.cc \
 	src/testing/googlemock/src/gmock_main.cc \
-	src/third_party/curl/COPYING \
-	src/third_party/curl/curlbuild.h \
-	src/third_party/curl/curl.h \
-	src/third_party/curl/curlrules.h \
-	src/third_party/curl/curlver.h \
-	src/third_party/curl/easy.h \
-	src/third_party/curl/mprintf.h \
-	src/third_party/curl/multi.h \
-	src/third_party/curl/stdcheaders.h \
-	src/third_party/curl/typecheck-gcc.h \
-	src/third_party/curl/types.h \
 	src/third_party/mac_headers/architecture/byte_order.h \
 	src/third_party/mac_headers/i386/_types.h \
 	src/third_party/mac_headers/mach/boolean.h \

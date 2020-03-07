@@ -1,4 +1,6 @@
-// Copyright (c) 2010, Google Inc.
+// -*- mode: c++ -*-
+
+// Copyright (c) 2011, Google Inc.
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -27,57 +29,52 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include <string.h>
+// dump_symbols.h: Read debugging information from a PECOFF file, and write
+// it out as a Breakpad symbol file.
 
+#ifndef COMMON_PECOFF_DUMP_SYMBOLS_H__
+#define COMMON_PECOFF_DUMP_SYMBOLS_H__
+
+#include <iostream>
 #include <string>
 #include <vector>
 
+#include "common/symbol_data.h"
 #include "common/using_std_string.h"
-
-#ifndef HAVE_STRTOK_R
-extern "C" char *strtok_r(char *, const char *, char **);
-#endif
-
-#ifdef _MSC_VER
-#define strtok_r strtok_s
-#endif
 
 namespace google_breakpad {
 
-using std::vector;
+class Module;
 
-bool Tokenize(char *line,
-	      const char *separators,
-	      int max_tokens,
-	      vector<char*> *tokens) {
-  tokens->clear();
-  tokens->reserve(max_tokens);
-
-  int remaining = max_tokens;
-
-  // Split tokens on the separator character.
-  // strip them out before exhausting max_tokens.
-  char *save_ptr;
-  char *token = strtok_r(line, separators, &save_ptr);
-  while (token && --remaining > 0) {
-    tokens->push_back(token);
-    if (remaining > 1)
-      token = strtok_r(NULL, separators, &save_ptr);
+struct DumpOptions {
+  DumpOptions(SymbolData symbol_data, bool handle_inter_cu_refs)
+      : symbol_data(symbol_data),
+        handle_inter_cu_refs(handle_inter_cu_refs) {
   }
 
-  // If there's anything left, just add it as a single token.
-  if (remaining == 0 && (token = strtok_r(NULL, "\r\n", &save_ptr))) {
-    tokens->push_back(token);
-  }
+  SymbolData symbol_data;
+  bool handle_inter_cu_refs;
+};
 
-  return tokens->size() == static_cast<unsigned int>(max_tokens);
-}
+// Find all the debugging information in OBJ_FILE, an PECOFF executable
+// or shared library, and write it to SYM_STREAM in the Breakpad symbol
+// file format.
+// If OBJ_FILE has been stripped but contains a .gnu_debuglink section,
+// then look for the debug file in DEBUG_DIRS.
+// SYMBOL_DATA allows limiting the type of symbol data written.
+bool WriteSymbolFile(const string &obj_file,
+                     const std::vector<string>& debug_dirs,
+                     const DumpOptions& options,
+                     std::ostream &sym_stream);
 
-void StringToVector(const string &str, vector<char> &vec) {
-  vec.resize(str.length() + 1);
-  std::copy(str.begin(), str.end(),
-	    vec.begin());
-  vec[str.length()] = '\0';
-}
+// As above, but simply return the debugging information in MODULE
+// instead of writing it to a stream. The caller owns the resulting
+// Module object and must delete it when finished.
+bool ReadSymbolData(const string& obj_file,
+                    const std::vector<string>& debug_dirs,
+                    const DumpOptions& options,
+                    Module** module);
 
-} // namespace google_breakpad
+}  // namespace google_breakpad
+
+#endif  // COMMON_PECOFF_DUMP_SYMBOLS_H__

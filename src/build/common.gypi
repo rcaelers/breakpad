@@ -206,9 +206,9 @@
       # Whether to use multiple cores to compile with visual studio. This is
       # optional because it sometimes causes corruption on VS 2005.
       # It is on by default on VS 2008 and off on VS 2005.
-      ['OS=="win"', {
+      ['"<(GENERATOR)" == "msvs"', {
         'conditions': [
-          ['MSVS_VERSION=="2005"', {
+          [ 'MSVS_VERSION=="2005"', {
             'msvs_multi_core_compile%': 0,
           },{
             'msvs_multi_core_compile%': 1,
@@ -225,6 +225,10 @@
           # Native Client loader for 64-bit Windows.
           'NACL_WIN64',
         ],
+      },
+      {
+            # XXX: because value is used below...
+            'msvs_multi_core_compile%': 0,
       }],
     ],
 
@@ -324,6 +328,7 @@
           '_CRT_NONSTDC_NO_DEPRECATE',
           # This is required for ATL to use XP-safe versions of its functions.
           '_USING_V110_SDK71_',
+          '_SILENCE_TR1_NAMESPACE_DEPRECATION_WARNING',
         ],
         'msvs_disabled_warnings': [4800],
         'msvs_settings': {
